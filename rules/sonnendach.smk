@@ -7,7 +7,6 @@ There are two types of statistical information extracted from this dataset:
 (2) Total estimation of available Swiss roofs and their PV potential.
 """
 
-import sys; sys.path.append(os.getcwd()) # this is necessary to be able to import "src", not sure why
 RAW_SONNENDACH_DATA = "data/sonnendach/SOLKAT_20180827.gdb/"
 RAW_BUILDING_CATEGORIES = "data/gwr/Table_GEB-01.txt"
 LAYER_NAME = "SOLKAT_CH_DACH"
@@ -53,7 +52,6 @@ rule sonnendach_rooftop_data:
     input: RAW_SONNENDACH_DATA
     output:
         "build/swiss/roofs-without-geometry.csv"
-    conda: "../envs/default.yaml"
     shell:
         "ogr2ogr -dialect sqlite -f csv \
         -sql 'SELECT DF_UID, GWR_EGID, FLAECHE, AUSRICHTUNG, NEIGUNG, MSTRAHLUNG, GSTRAHLUNG FROM {LAYER_NAME}' \
