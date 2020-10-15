@@ -18,10 +18,9 @@ onerror:
 
 rule all:
     input:
-        "build/swiss/total-rooftop-area-according-to-sonnendach-data-km2.txt",
-        "build/swiss/total-yield-according-to-sonnendach-data-twh.txt",
-        "build/swiss/roof-statistics.csv",
-        "build/swiss/roof-statistics-publish.csv"
+        "build/total-rooftop-area-km2.txt",
+        "build/total-yield-twh.txt",
+        "build/roof-statistics.csv",
 
 
 rule clean: # removes all generated results

@@ -10,8 +10,6 @@ There are two types of statistical information extracted from this dataset:
 RAW_SONNENDACH_DATA = "data/sonnendach/SOLKAT_20180827.gdb/"
 RAW_BUILDING_CATEGORIES = "data/gwr/Table_GEB-01.txt"
 LAYER_NAME = "SOLKAT_CH_DACH"
-DATA_AVAILABLE = 255
-RASTER_RESOLUTION_IN_M = 100
 MIN_ROOF_SIZE = 10 # @BFE:2016 "Berechnung Potential in Gemeinden"
 MAX_FLAT_TILT = 10 # @BFE:2016 "Berechnung Potential in Gemeinden"
 SINGLE_FAMILY_BUILDING = 1021 # GKAT @BFE:2016 "Berechnung Potential in Gemeinden"
@@ -21,20 +19,12 @@ THEIR_PERFORMANCE_RATIO = 0.8 # @Klauser:2016 "Solarpotentialanalyse für Sonnen
 THEIR_EFFICIENCY = 0.17 # @Klauser:2016 "Solarpotentialanalyse für Sonnendach.ch"
 
 
-rule all_sonnendach:
-    input:
-        "build/swiss/total-rooftop-area-according-to-sonnendach-data-km2.txt",
-        "build/swiss/total-yield-according-to-sonnendach-data-twh.txt",
-        "build/swiss/roof-statistics.csv",
-        "build/swiss/roof-statistics-publish.csv"
-
-
 rule building_categories:
     message: "Preprocess the building category data."
     input:
         RAW_BUILDING_CATEGORIES
     output:
-        "build/swiss/building-categories.csv"
+        "build/building-categories.csv"
     run:
         import pandas as pd
         categories = pd.read_table(
@@ -51,7 +41,7 @@ rule sonnendach_rooftop_data:
     message: "Extract necessary data from sonnendach to create a statistical model."
     input: RAW_SONNENDACH_DATA
     output:
-        "build/swiss/roofs-without-geometry.csv"
+        "build/roofs-without-geometry.csv"
     shell:
         "ogr2ogr -dialect sqlite -f csv \
         -sql 'SELECT DF_UID, GWR_EGID, FLAECHE, AUSRICHTUNG, NEIGUNG, MSTRAHLUNG, GSTRAHLUNG FROM {LAYER_NAME}' \
@@ -63,7 +53,7 @@ rule total_size_swiss_rooftops_according_to_sonnendach_data:
     input:
         sonnendach = rules.sonnendach_rooftop_data.output,
         categories = rules.building_categories.output
-    output: "build/swiss/total-rooftop-area-according-to-sonnendach-data-km2.txt"
+    output: "build/total-rooftop-area-km2.txt"
     run:
         import pandas as pd
 
@@ -110,7 +100,7 @@ rule total_swiss_yield_according_to_sonnendach_data:
     input:
         sonnendach = rules.sonnendach_rooftop_data.output,
         categories = rules.building_categories.output
-    output: "build/swiss/total-yield-according-to-sonnendach-data-twh.txt"
+    output: "build/total-yield-twh.txt"
     run:
         import pandas as pd
 
@@ -156,15 +146,13 @@ rule total_swiss_yield_according_to_sonnendach_data:
 rule sonnendach_statistics:
     message: "Create statistics of roofs in Switzerland."
     input: rules.sonnendach_rooftop_data.output
-    output:
-        raw = "build/swiss/roof-statistics.csv",
-        publish = "build/swiss/roof-statistics-publish.csv"
+    output: "build/roof-statistics.csv",
     run:
         import pandas as pd
         data = pd.read_csv(input[0], index_col=0)
         data.rename(columns={"AUSRICHTUNG": "orientation", "NEIGUNG": "tilt", "FLAECHE": "area"}, inplace=True)
         data = data[data.area > MIN_ROOF_SIZE]
-        data["share of roof areas"] = data.area.transform(lambda x: x / x.sum())
+        data["share_of_roof_areas"] = data.area.transform(lambda x: x / x.sum())
         orientation_categories = pd.cut(
             data["orientation"],
             bins=[-180, -135, -45, 45, 135, 180],
@@ -180,18 +168,8 @@ rule sonnendach_statistics:
         assert not tilt_categories.isnull().any()
 
         roof_categories = data.groupby([orientation_categories, tilt_categories]).agg(
-            {"share of roof areas": "sum", "tilt": "mean"}
-        )
-        roof_categories.loc["flat", "tilt"] = 0.0
-        roof_categories = roof_categories.reset_index()[["orientation", "tilt", "share of roof areas"]]
-        roof_categories.to_csv(output.raw, header=True, index=False)
-        roof_categories.rename(
-            columns={
-                "orientation": "Orientation",
-                "share of roof areas": "Share of roof areas [%]",
-                "tilt": "Average tilt [%]"
-            },
-            inplace=True
-        )
-        roof_categories["Share of roof areas [%]"] = roof_categories["Share of roof areas [%]"] * 100
-        roof_categories.to_csv(output.publish, header=True, index=False, float_format="%.1f")
+            {"share_of_roof_areas": "sum", "tilt": "mean"}
+        ).rename(columns={"tilt": "average_tilt"})
+        roof_categories.loc["flat", "average_tilt"] = 0.0
+        roof_categories = roof_categories.reset_index()[["orientation", "average_tilt", "share_of_roof_areas"]]
+        roof_categories.to_csv(output[0], header=True, index=False)
