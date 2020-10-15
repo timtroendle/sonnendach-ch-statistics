@@ -2,6 +2,8 @@
 
 This repository contains the code to generate statistics of the sonnendach.ch dataset. It does not include input or output data of the analysis.
 
+[![data DOI](https://img.shields.io/badge/data-10.5281%2Fzenodo.4091033-blue)](https://doi.org/10.5281/zenodo.4091033)
+
 ## Getting ready
 
 ### Installation
